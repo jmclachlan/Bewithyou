@@ -59,3 +59,27 @@ This app verifies `Mux-Signature` using:
 ```bash
 bin/rails test
 ```
+
+## Staging environment + smoke test
+
+A dedicated `staging` Rails environment is included (`config/environments/staging.rb` + `storage/staging.sqlite3`).
+
+Run a quick end-to-end smoke test in staging:
+
+```bash
+APP_HOST=watch.staging.local \
+POSTMARK_API_TOKEN=smoke-postmark-token \
+FROM_EMAIL=alerts@example.com \
+TO_EMAIL=james@example.com \
+WATCH_TOKEN=smoke-watch-token \
+MUX_WEBHOOK_SECRET=smoke-mux-secret \
+RAILS_ENV=staging \
+bin/smoke
+```
+
+This smoke run verifies:
+- invalid watch token returns 404
+- valid watch token renders page
+- signed live webhook updates state + triggers live notification path
+- signed idle webhook marks stream offline
+- signed replay webhook stores VOD playback id + triggers replay notification path
