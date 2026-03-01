@@ -3,28 +3,10 @@
   <script defer src="https://unpkg.com/@mux/mux-player"></script>
 <% end %>
 
+<%= turbo_stream_from StreamState.broadcast_stream_name %>
+
 <main class="watch-page">
-  <% if @mode == :live %>
-    <h1>Game Stream <span class="badge">LIVE</span></h1>
-    <mux-player
-      stream-type="live"
-      playback-id="<%= @playback_id %>"
-      metadata-video-title="GameLink Live"
-      primary-color="#1f7aec"
-      accent-color="#ffffff"
-      controls
-    ></mux-player>
-  <% elsif @mode == :replay %>
-    <h1>Game Replay</h1>
-    <mux-player
-      playback-id="<%= @playback_id %>"
-      metadata-video-title="GameLink Replay"
-      primary-color="#1f7aec"
-      accent-color="#ffffff"
-      controls
-    ></mux-player>
-  <% else %>
-    <h1>Not live yet.</h1>
-    <p>Start the stream in Larix and this page will update for live or replay.</p>
+  <%= turbo_frame_tag "watch_state" do %>
+    <%= render "state", stream_state: @stream_state %>
   <% end %>
 </main>

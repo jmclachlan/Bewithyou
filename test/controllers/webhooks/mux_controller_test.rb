@@ -2,6 +2,8 @@ require "test_helper"
 require "openssl"
 
 class Webhooks::MuxControllerTest < ActionDispatch::IntegrationTest
+  include ActiveJob::TestHelper
+
   NotificationCounter = Struct.new(:live_calls, :replay_calls) do
     def send_live!
       self.live_calls += 1
@@ -27,8 +29,11 @@ class Webhooks::MuxControllerTest < ActionDispatch::IntegrationTest
     ENV["FROM_EMAIL"] = "from@example.com"
     ENV["TO_EMAIL"] = "to@example.com"
 
-    @previous_notification_builder = Webhooks::MuxController.notification_service_builder
+    @previous_job_builder = StreamNotificationJob.notification_service_builder
+    clear_enqueued_jobs
+    clear_performed_jobs
     StreamState.delete_all
+    ProcessedWebhookEvent.delete_all
   end
 
   teardown do
@@ -38,7 +43,9 @@ class Webhooks::MuxControllerTest < ActionDispatch::IntegrationTest
     ENV["POSTMARK_API_TOKEN"] = @previous_postmark_token
     ENV["FROM_EMAIL"] = @previous_from_email
     ENV["TO_EMAIL"] = @previous_to_email
-    Webhooks::MuxController.notification_service_builder = @previous_notification_builder
+    StreamNotificationJob.notification_service_builder = @previous_job_builder
+    clear_enqueued_jobs
+    clear_performed_jobs
   end
 
   test "returns unauthorized for invalid signature" do
@@ -59,39 +66,47 @@ class Webhooks::MuxControllerTest < ActionDispatch::IntegrationTest
     )
 
     first_notification_service = NotificationCounter.new(0, 0)
-    Webhooks::MuxController.notification_service_builder = -> { first_notification_service }
-    post_with_valid_signature(payload)
+    StreamNotificationJob.notification_service_builder = -> { first_notification_service }
+
+    assert_enqueued_with(job: StreamNotificationJob, args: [ "live" ]) do
+      post_with_valid_signature(payload)
+    end
 
     assert_response :ok
-    assert_equal 1, first_notification_service.live_calls
+    assert_equal 1, ProcessedWebhookEvent.count
 
     state = StreamState.singleton!
     assert state.live?
     assert_equal "live_playback_123", state.live_playback_id
     assert_equal "evt_live_1", state.last_event_id
-    assert_not_nil state.sent_live_email_at
+    assert_nil state.sent_live_email_at
 
-    never_call_service = Object.new
-    def never_call_service.send_live!
-      raise "send_live! should not be called for duplicate event id"
+    perform_enqueued_jobs only: StreamNotificationJob
+    state.reload
+    assert_not_nil state.sent_live_email_at
+    assert_equal 1, first_notification_service.live_calls
+
+    assert_no_enqueued_jobs only: StreamNotificationJob do
+      post_with_valid_signature(payload)
     end
 
-    Webhooks::MuxController.notification_service_builder = -> { never_call_service }
-    post_with_valid_signature(payload)
-
     assert_response :ok
+    assert_equal 1, ProcessedWebhookEvent.count
   end
 
   test "handles video.live_stream.idle and sets live to false" do
     StreamState.singleton!.update!(live: true, live_playback_id: "live_old")
     payload = mux_event_payload(type: "video.live_stream.idle", event_id: "evt_idle_1")
 
-    post_with_valid_signature(payload)
+    assert_no_enqueued_jobs only: StreamNotificationJob do
+      post_with_valid_signature(payload)
+    end
 
     assert_response :ok
     state = StreamState.singleton!
     assert_not state.live?
     assert_equal "evt_idle_1", state.last_event_id
+    assert_equal 1, ProcessedWebhookEvent.count
   end
 
   test "handles video.asset.live_stream_completed and sends replay email once" do
@@ -102,16 +117,24 @@ class Webhooks::MuxControllerTest < ActionDispatch::IntegrationTest
     )
 
     replay_notification_service = NotificationCounter.new(0, 0)
-    Webhooks::MuxController.notification_service_builder = -> { replay_notification_service }
-    post_with_valid_signature(payload)
+    StreamNotificationJob.notification_service_builder = -> { replay_notification_service }
+
+    assert_enqueued_with(job: StreamNotificationJob, args: [ "replay" ]) do
+      post_with_valid_signature(payload)
+    end
 
     assert_response :ok
-    assert_equal 1, replay_notification_service.replay_calls
+    assert_equal 1, ProcessedWebhookEvent.count
 
     state = StreamState.singleton!
     assert_equal "vod_playback_123", state.vod_playback_id
     assert_equal "evt_replay_1", state.last_event_id
+    assert_nil state.sent_replay_email_at
+
+    perform_enqueued_jobs only: StreamNotificationJob
+    state.reload
     assert_not_nil state.sent_replay_email_at
+    assert_equal 1, replay_notification_service.replay_calls
   end
 
   private

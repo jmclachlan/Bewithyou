@@ -10,7 +10,17 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_03_01_055202) do
+ActiveRecord::Schema[8.1].define(version: 2026_03_01_065047) do
+  create_table "processed_webhook_events", force: :cascade do |t|
+    t.datetime "created_at", null: false
+    t.string "event_type", null: false
+    t.string "external_event_id", null: false
+    t.datetime "processed_at", null: false
+    t.string "provider", null: false
+    t.datetime "updated_at", null: false
+    t.index ["provider", "external_event_id"], name: "index_processed_events_on_provider_and_external_id", unique: true
+  end
+
   create_table "stream_states", force: :cascade do |t|
     t.datetime "created_at", null: false
     t.string "last_event_id"

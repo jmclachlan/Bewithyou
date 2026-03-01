@@ -26,6 +26,8 @@ class WatchControllerTest < ActionDispatch::IntegrationTest
     assert_includes response.body, "LIVE"
     assert_includes response.body, 'playback-id="live123"'
     assert_includes response.body, 'stream-type="live"'
+    assert_includes response.body, "turbo-cable-stream-source"
+    assert_includes response.body, 'id="watch_state"'
   end
 
   test "renders replay when not live but replay exists" do
@@ -45,5 +47,6 @@ class WatchControllerTest < ActionDispatch::IntegrationTest
 
     assert_response :success
     assert_includes response.body, "Not live yet."
+    assert_includes response.body, "update automatically"
   end
 end

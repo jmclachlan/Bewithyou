@@ -16,6 +16,7 @@ Rails.application.configure do
   config.logger = ActiveSupport::TaggedLogging.logger(STDOUT)
   config.log_level = ENV.fetch("RAILS_LOG_LEVEL", "info")
   config.silence_healthcheck_path = "/up"
+  config.active_job.queue_adapter = :async
 
   config.active_support.report_deprecations = false
   config.i18n.fallbacks = true

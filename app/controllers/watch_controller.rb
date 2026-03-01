@@ -3,20 +3,9 @@ class WatchController < ApplicationController
     return head :not_found unless valid_watch_token?(params[:token])
 
     @stream_state = StreamState.singleton!
-    @mode, @playback_id = current_mode_and_playback(@stream_state)
   end
 
   private
-
-  def current_mode_and_playback(stream_state)
-    if stream_state.live? && stream_state.live_playback_id.present?
-      [:live, stream_state.live_playback_id]
-    elsif stream_state.vod_playback_id.present?
-      [:replay, stream_state.vod_playback_id]
-    else
-      [:offline, nil]
-    end
-  end
 
   def valid_watch_token?(provided_token)
     expected_token = ENV["WATCH_TOKEN"].to_s

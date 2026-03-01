@@ -1,6 +1,6 @@
 class Webhooks::MuxController < ApplicationController
   skip_forgery_protection
-  class_attribute :notification_service_builder, default: -> { StreamNotificationService.new }
+  PROVIDER = "mux".freeze
 
   def create
     raw_payload = request.raw_post
@@ -14,17 +14,11 @@ class Webhooks::MuxController < ApplicationController
     event_type = event["type"]
     return head :bad_request if event_id.blank? || event_type.blank?
 
-    stream_state = StreamState.singleton!
-
-    stream_state.with_lock do
-      stream_state.reload
-      if stream_state.last_event_id == event_id
-        return head :ok
-      end
-
-      handle_event(stream_state: stream_state, event: event, event_type: event_type)
-      stream_state.update!(last_event_id: event_id)
-    end
+    process_event(
+      event_id: event_id,
+      event_type: event_type,
+      event: event
+    )
 
     head :ok
   rescue JSON::ParserError
@@ -32,6 +26,28 @@ class Webhooks::MuxController < ApplicationController
   end
 
   private
+
+  def process_event(event_id:, event_type:, event:)
+    processed = false
+
+    StreamState.transaction do
+      processed = ProcessedWebhookEvent.claim!(
+        provider: PROVIDER,
+        external_event_id: event_id,
+        event_type: event_type
+      )
+
+      raise ActiveRecord::Rollback unless processed
+
+      stream_state = StreamState.singleton!
+      stream_state.with_lock do
+        handle_event(stream_state: stream_state, event: event, event_type: event_type)
+        stream_state.update!(last_event_id: event_id)
+      end
+    end
+
+    processed
+  end
 
   def handle_event(stream_state:, event:, event_type:)
     case event_type
@@ -54,10 +70,7 @@ class Webhooks::MuxController < ApplicationController
     updates[:live_playback_id] = live_playback_id if live_playback_id.present?
     stream_state.update!(updates)
 
-    return if stream_state.sent_live_email_at.present?
-
-    notification_service.send_live!
-    stream_state.update!(sent_live_email_at: Time.current)
+    StreamNotificationJob.perform_later("live") if stream_state.sent_live_email_at.blank?
   end
 
   def handle_replay_ready(stream_state, event)
@@ -70,10 +83,7 @@ class Webhooks::MuxController < ApplicationController
     updates[:vod_playback_id] = vod_playback_id if vod_playback_id.present?
     stream_state.update!(updates) if updates.any?
 
-    return if stream_state.sent_replay_email_at.present?
-
-    notification_service.send_replay!
-    stream_state.update!(sent_replay_email_at: Time.current)
+    StreamNotificationJob.perform_later("replay") if stream_state.sent_replay_email_at.blank?
   end
 
   def first_playback_id_from(*candidates)
@@ -83,9 +93,5 @@ class Webhooks::MuxController < ApplicationController
     end
 
     nil
-  end
-
-  def notification_service
-    @notification_service ||= self.class.notification_service_builder.call
   end
 end

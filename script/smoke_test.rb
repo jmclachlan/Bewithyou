@@ -32,11 +32,14 @@ end.new(0, 0)
 watch_token = ENV.fetch("WATCH_TOKEN")
 mux_secret = ENV.fetch("MUX_WEBHOOK_SECRET")
 
-previous_builder = Webhooks::MuxController.notification_service_builder
-Webhooks::MuxController.notification_service_builder = -> { notification_counter }
+previous_builder = StreamNotificationJob.notification_service_builder
+previous_adapter = ActiveJob::Base.queue_adapter
+StreamNotificationJob.notification_service_builder = -> { notification_counter }
+ActiveJob::Base.queue_adapter = :inline
 
 begin
   StreamState.delete_all
+  ProcessedWebhookEvent.delete_all
   StreamState.singleton!
 
   session = ActionDispatch::Integration::Session.new(Rails.application)
@@ -132,7 +135,10 @@ begin
   assert!(session.response.body.include?("Game Replay"), "watch page should show replay state")
   assert!(session.response.body.include?('playback-id="smoke_vod_playback_id"'), "watch page should include replay playback id")
 
+  assert!(ProcessedWebhookEvent.count == 3, "processed webhook events should be tracked for idempotency")
+
   puts "Smoke test passed in #{Rails.env} environment."
 ensure
-  Webhooks::MuxController.notification_service_builder = previous_builder
+  StreamNotificationJob.notification_service_builder = previous_builder
+  ActiveJob::Base.queue_adapter = previous_adapter
 end

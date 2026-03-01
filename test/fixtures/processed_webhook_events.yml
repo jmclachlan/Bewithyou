@@ -1,0 +1,13 @@
+# Read about fixtures at https://api.rubyonrails.org/classes/ActiveRecord/FixtureSet.html
+
+one:
+  provider: mux
+  external_event_id: evt_fixture_1
+  event_type: video.live_stream.active
+  processed_at: 2026-03-01 06:50:47
+
+two:
+  provider: mux
+  external_event_id: evt_fixture_2
+  event_type: video.asset.live_stream_completed
+  processed_at: 2026-03-01 06:50:47

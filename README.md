@@ -10,6 +10,7 @@ Private single-link stream watcher for one recipient.
   - `video.live_stream.idle` => marks stream idle.
   - `video.asset.live_stream_completed` => stores VOD playback id and sends one "Replay is ready" email.
 - Same watch link works for both live and replay.
+- Watch page auto-updates using Rails 8 Hotwire Turbo Streams.
 
 ## Environment variables
 
@@ -57,6 +58,9 @@ heroku buildpacks:set heroku/ruby -a your-gamelink-app
 # 3) Add Postgres
 heroku addons:create heroku-postgresql:mini -a your-gamelink-app
 
+# (Optional) Add Redis if you will run multiple dynos for Turbo Streams
+# heroku addons:create heroku-redis:mini -a your-gamelink-app
+
 # 4) Set required config vars
 heroku config:set \
   APP_HOST=your-gamelink-app.herokuapp.com \
@@ -90,6 +94,15 @@ This app verifies `Mux-Signature` using:
 - `t=` timestamp
 - `v1=` HMAC SHA256 signature of `"{timestamp}.{raw_body}"` with `MUX_WEBHOOK_SECRET`
 - 5-minute timestamp tolerance
+
+Webhook idempotency is enforced with a dedicated `processed_webhook_events` table
+and a unique index on `(provider, external_event_id)`.
+
+## Hotwire stack
+
+- Importmap is configured (`config/importmap.rb`, `app/javascript/application.js`).
+- Turbo + Stimulus are wired in the application layout.
+- Watch clients subscribe to Turbo Streams and update live/replay state without page refresh.
 
 ## Email format
 
