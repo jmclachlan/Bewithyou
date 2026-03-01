@@ -1,0 +1,13 @@
+development:
+  adapter: async
+
+test:
+  adapter: test
+
+staging:
+  adapter: async
+
+production:
+  adapter: <%= ENV["REDIS_URL"].present? ? "redis" : "async" %>
+  url: <%= ENV["REDIS_URL"] %>
+  channel_prefix: workspace_production

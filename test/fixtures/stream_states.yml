@@ -1,0 +1,17 @@
+# Read about fixtures at https://api.rubyonrails.org/classes/ActiveRecord/FixtureSet.html
+
+one:
+  live: false
+  live_playback_id: MyString
+  vod_playback_id: MyString
+  last_event_id: MyString
+  sent_live_email_at: 2026-03-01 05:52:02
+  sent_replay_email_at: 2026-03-01 05:52:02
+
+two:
+  live: false
+  live_playback_id: MyString
+  vod_playback_id: MyString
+  last_event_id: MyString
+  sent_live_email_at: 2026-03-01 05:52:02
+  sent_replay_email_at: 2026-03-01 05:52:02

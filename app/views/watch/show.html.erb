@@ -1,0 +1,12 @@
+<% content_for :title, "GameLink Watch" %>
+<% content_for :head do %>
+  <script defer src="https://unpkg.com/@mux/mux-player"></script>
+<% end %>
+
+<%= turbo_stream_from StreamState.broadcast_stream_name %>
+
+<main class="watch-page">
+  <%= turbo_frame_tag "watch_state" do %>
+    <%= render "state", stream_state: @stream_state %>
+  <% end %>
+</main>

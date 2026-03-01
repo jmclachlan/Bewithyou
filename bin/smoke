@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+export RAILS_ENV="${RAILS_ENV:-staging}"
+
+bundle exec rails db:prepare
+bundle exec rails runner script/smoke_test.rb
