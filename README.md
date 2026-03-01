@@ -38,6 +38,51 @@ Watch page:
 http://localhost:3000/g/$WATCH_TOKEN
 ```
 
+## Deploy to Heroku
+
+This repo is now Heroku-ready:
+- `Procfile` includes `release: bundle exec rails db:migrate` and web process.
+- Production uses Postgres via `DATABASE_URL`.
+- `app.json` declares required env vars and Postgres addon.
+
+### Quick deploy (CLI)
+
+```bash
+# 1) Create app
+heroku create your-gamelink-app
+
+# 2) Ensure stack/buildpack
+heroku buildpacks:set heroku/ruby -a your-gamelink-app
+
+# 3) Add Postgres
+heroku addons:create heroku-postgresql:mini -a your-gamelink-app
+
+# 4) Set required config vars
+heroku config:set \
+  APP_HOST=your-gamelink-app.herokuapp.com \
+  POSTMARK_API_TOKEN=... \
+  FROM_EMAIL=alerts@yourdomain.com \
+  TO_EMAIL=james@example.com \
+  WATCH_TOKEN=long_random_token \
+  MUX_WEBHOOK_SECRET=shared_secret \
+  RAILS_SERVE_STATIC_FILES=enabled \
+  RAILS_LOG_TO_STDOUT=enabled \
+  -a your-gamelink-app
+
+# 5) Deploy
+git push heroku main
+```
+
+### After deploy
+
+```bash
+# Health check
+curl https://your-gamelink-app.herokuapp.com/up
+
+# Watch URL
+echo "https://your-gamelink-app.herokuapp.com/g/<WATCH_TOKEN>"
+```
+
 ## Mux webhook notes
 
 This app verifies `Mux-Signature` using:
@@ -83,3 +128,12 @@ This smoke run verifies:
 - signed live webhook updates state + triggers live notification path
 - signed idle webhook marks stream offline
 - signed replay webhook stores VOD playback id + triggers replay notification path
+
+## Alternative suggestion
+
+If you want simpler ongoing ops and predictable pricing, **Render** is a good alternative for this app:
+- Native Rails + Postgres flow
+- Easy env var management
+- Straightforward deploys from GitHub
+
+Heroku remains the fastest path if you want to launch immediately.

@@ -1,0 +1,55 @@
+{
+  "name": "gamelink-mvp0",
+  "description": "Private live stream + replay watcher using Mux webhooks and Postmark.",
+  "keywords": [
+    "rails",
+    "mux",
+    "postmark"
+  ],
+  "buildpacks": [
+    {
+      "url": "heroku/ruby"
+    }
+  ],
+  "addons": [
+    "heroku-postgresql:mini"
+  ],
+  "env": {
+    "APP_HOST": {
+      "description": "Public host name without protocol (for example: my-app.herokuapp.com)",
+      "required": true
+    },
+    "POSTMARK_API_TOKEN": {
+      "description": "Postmark server API token",
+      "required": true
+    },
+    "FROM_EMAIL": {
+      "description": "Sender email allowed by Postmark",
+      "required": true
+    },
+    "TO_EMAIL": {
+      "description": "Recipient email address",
+      "required": true
+    },
+    "WATCH_TOKEN": {
+      "description": "Long random token used in /g/:token links",
+      "generator": "secret"
+    },
+    "MUX_WEBHOOK_SECRET": {
+      "description": "Signing secret from the Mux webhook endpoint",
+      "required": true
+    },
+    "RAILS_LOG_TO_STDOUT": {
+      "value": "enabled"
+    },
+    "RAILS_SERVE_STATIC_FILES": {
+      "value": "enabled"
+    }
+  },
+  "formation": {
+    "web": {
+      "quantity": 1,
+      "size": "eco"
+    }
+  }
+}
