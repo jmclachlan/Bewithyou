@@ -1,0 +1,1 @@
+StreamState.singleton!
